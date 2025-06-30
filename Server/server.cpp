@@ -2,20 +2,17 @@
 
 #define NOMINMAX
 
-
 #include <iostream>
 #include <WinSock2.h>
-#include "Packet.h"
-#include "rapidjson/document.h"
-#include "rapidjson/writer.h"
-#include "rapidjson/stringbuffer.h"
+
+#include "flatbuffers/flatbuffers.h"
+#include "Calculate_generated.h"
+#include "Result_generated.h"
 
 #pragma comment(lib, "ws2_32")
 
-using namespace std;
-using namespace rapidjson;
+int ProcessPacket(const char* buffer);
 
-int ProcessPacket(Document& d);
 
 int main()
 {
@@ -33,8 +30,7 @@ int main()
 	bind(ListenSocket, (SOCKADDR*)&ListenSockAddr, sizeof(ListenSockAddr));
 
 	listen(ListenSocket, 5);
-
-	SOCKADDR_IN ClientSockAddr;
+		SOCKADDR_IN ClientSockAddr;
 	memset(&ClientSockAddr, 0, sizeof(ClientSockAddr));
 	int ClientSockAddrLength = sizeof(ClientSockAddr);
 	SOCKET ClientSocket = accept(ListenSocket, (SOCKADDR*)&ClientSockAddr, &ClientSockAddrLength);
@@ -47,27 +43,16 @@ int main()
 		PacketSize = ntohl(PacketSize);
 		RecvBytes = recv(ClientSocket, RecvBuffer, PacketSize, MSG_WAITALL);
 
-		cout << RecvBuffer << endl;
+		int Result = ProcessPacket(RecvBuffer);
 
-		Document d;
-		d.Parse(RecvBuffer);
+		flatbuffers::FlatBufferBuilder Builder(1024);
+		auto CalculateResult = Calculate::CreateResult(Builder, Result);
+		Builder.Finish(CalculateResult);
 
-		int Result = ProcessPacket(d);
-
-		d.RemoveAllMembers();
-		d.SetObject();
-		d.AddMember("Result", Result, d.GetAllocator());
-
-		StringBuffer buffer;
-		Writer<StringBuffer> writer(buffer);
-		d.Accept(writer);
-
-		cout << buffer.GetString() << endl;
-
-		PacketSize = (int)buffer.GetSize();
+		PacketSize = (int)Builder.GetSize();
 		PacketSize = htonl(PacketSize);
 		int SentBytes = send(ClientSocket, (char*)&PacketSize, sizeof(PacketSize), 0);
-		SentBytes = send(ClientSocket, buffer.GetString(), (int)buffer.GetSize(), 0);
+		SentBytes = send(ClientSocket, (char*)Builder.GetBufferPointer(), Builder.GetSize(), 0);
 	}
 
 	closesocket(ListenSocket);
@@ -77,20 +62,22 @@ int main()
 	return 0;
 }
 
-int ProcessPacket(Document& d)
+int ProcessPacket(const char* buffer)
 {
-	switch (d["Operator"].GetInt())
+	auto d = Calculate::GetData(buffer);
+
+	switch (d->operator_())
 	{
-		case '+':
-			return d["Number1"].GetInt() + d["Number2"].GetInt();
-		case '-':
-			return d["Number1"].GetInt() - d["Number2"].GetInt();
-		case '/':
-			return d["Number1"].GetInt() / d["Number2"].GetInt();
-		case '*':
-			return d["Number1"].GetInt() * d["Number2"].GetInt();
-		case '%':
-			return d["Number1"].GetInt() % d["Number2"].GetInt();
+	case '+':
+		return d->number1() + d->number2();
+	case '-':
+		return d->number1() - d->number2();
+	case '/':
+		return d->number1() /+ d->number2();
+	case '*':
+		return d->number1() * d->number2();
+	case '%':
+		return d->number1() % d->number2();
 	}
 
 	return 0;
