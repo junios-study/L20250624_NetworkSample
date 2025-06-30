@@ -54,20 +54,20 @@ int main()
 
 		int Result = ProcessPacket(d);
 
-		Document d2;
-		d2.SetObject();
-		d2.AddMember("Result", Result, d.GetAllocator());
+		d.RemoveAllMembers();
+		d.SetObject();
+		d.AddMember("Result", Result, d.GetAllocator());
 
 		StringBuffer buffer;
 		Writer<StringBuffer> writer(buffer);
-		d2.Accept(writer);
+		d.Accept(writer);
 
 		cout << buffer.GetString() << endl;
 
-		PacketSize = buffer.GetSize();
+		PacketSize = (int)buffer.GetSize();
 		PacketSize = htonl(PacketSize);
 		int SentBytes = send(ClientSocket, (char*)&PacketSize, sizeof(PacketSize), 0);
-		SentBytes = send(ClientSocket, buffer.GetString(), buffer.GetSize(), 0);
+		SentBytes = send(ClientSocket, buffer.GetString(), (int)buffer.GetSize(), 0);
 	}
 
 	closesocket(ListenSocket);

@@ -70,7 +70,7 @@ int main()
 	connect(ServerSocket, (SOCKADDR*)&ServerSockAddr, sizeof(ServerSockAddr));
 
 	char Operators[5] = { '+', '-', '*', '/', '%' };
-	srand(time(NULL));
+	srand((unsigned int)time(NULL));
 	while (true)
 	{
 		int Number1 = rand() % 9998 + 1;
@@ -88,10 +88,10 @@ int main()
 
 		cout << buffer.GetString() << endl;
 
-		int PacketSize = buffer.GetSize();
+		int PacketSize = (int)buffer.GetSize();
 		PacketSize = htonl(PacketSize);
 		int SentBytes = send(ServerSocket, (char*)&PacketSize, sizeof(PacketSize), 0);
-		SentBytes = send(ServerSocket, buffer.GetString(), buffer.GetSize(), 0);
+		SentBytes = send(ServerSocket, buffer.GetString(), (int)buffer.GetSize(), 0);
 
 		char RecvBuffer[65535] = { 0, };
 		int RecvBytes = recv(ServerSocket, (char*)&PacketSize, sizeof(PacketSize), MSG_WAITALL);
@@ -100,9 +100,10 @@ int main()
 
 		cout << RecvBuffer << endl;
 
-		Document d2;
-		d2.Parse(RecvBuffer);
-		cout << d2["Result"].GetInt() << endl;
+		d.RemoveAllMembers();
+		d.SetObject();
+		d.Parse(RecvBuffer);
+		cout << d["Result"].GetInt() << endl;
 	}
 
 	closesocket(ServerSocket);
