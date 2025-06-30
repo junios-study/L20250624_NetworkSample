@@ -1,84 +1,67 @@
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
 
+#define NOMINMAX
+
+
 #include <iostream>
 #include <WinSock2.h>
+#include <Windows.h>
 #include "Packet.h"
+#include "rapidjson/document.h"
+#include "rapidjson/writer.h"
+#include "rapidjson/stringbuffer.h"
+
 
 #pragma comment(lib, "ws2_32")
 
-
+using namespace std;
+using namespace rapidjson;
 
 int main()
 {
-	WSAData wsaData;
-	WSAStartup(MAKEWORD(2, 2), &wsaData);
+	//serialize(file, socket)
+	const char* JSONString = "{\"Key\" :		\"Value1\",		\n\n  \"Key1\" : \"Value1\",  \"Number1\" : 10, \"Number2\" : 20 }";
 
-	SOCKET ServerSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	
+	//°´Ã¼, deserialize 
+	Document d;
 
-	SOCKADDR_IN ServerSockAddr;
-	memset(&ServerSockAddr, 0, sizeof(ServerSockAddr));
-	ServerSockAddr.sin_family = PF_INET;
-	ServerSockAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
-	ServerSockAddr.sin_port = htons(30303);
+	d.Parse(JSONString);
+	Document::AllocatorType& allocator = d.GetAllocator();
+	d.AddMember("Number3", d["Number1"].GetInt() + d["Number2"].GetInt(), d.GetAllocator());
 
-	connect(ServerSocket, (SOCKADDR*)&ServerSockAddr, sizeof(ServerSockAddr));
-
-	srand(time(NULL));
-	while (true)
-	{
-		Numbers Data;
-		Data.FirstNumber = rand() % 9999 + 1;
-		Data.SecondNumbers = rand() % 9999 + 1;
-
-		std::cout << "First : " << Data.FirstNumber << std::endl;
-		std::cout << "Second : " << Data.SecondNumbers << std::endl;
+	std::cout << d["Number3"].GetInt() << endl;
 
 
-		Data.FirstNumber = htons(Data.FirstNumber);
-		Data.SecondNumbers = htons(Data.SecondNumbers);
+	//serialize
+	StringBuffer buffer;
+	Writer<StringBuffer> writer(buffer);
+	d.Accept(writer);
 
-		unsigned short PacketSize = sizeof(Data);
-		PacketSize = htons(PacketSize);
-		send(ServerSocket, (char*)&PacketSize, sizeof(unsigned short), 0);
-
-		unsigned short EventName = (unsigned short)(rand() % 5 + 1);
-		EventName = htons(EventName);
-		send(ServerSocket, (char*)&EventName, sizeof(unsigned short), 0);
-
-		send(ServerSocket, (char*)&Data, sizeof(Data), 0);
+	std::cout << buffer.GetString() << endl;
 
 
+	//WSAData wsaData;
+	//WSAStartup(MAKEWORD(2, 2), &wsaData);
 
-		int RecvByte = recv(ServerSocket, (char*)&PacketSize, 2, MSG_WAITALL);
-		PacketSize = ntohs(PacketSize);
+	//SOCKET ServerSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
-		RecvByte = recv(ServerSocket, (char*)&EventName, 2, MSG_WAITALL);
-		EventName = ntohs(EventName);
+	//SOCKADDR_IN ServerSockAddr;
+	//memset(&ServerSockAddr, 0, sizeof(ServerSockAddr));
+	//ServerSockAddr.sin_family = PF_INET;
+	//ServerSockAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+	//ServerSockAddr.sin_port = htons(30303);
 
-		EEventCode PakcetCode = (EEventCode)EventName;
+	//connect(ServerSocket, (SOCKADDR*)&ServerSockAddr, sizeof(ServerSockAddr));
 
-		switch (PakcetCode)
-		{
-			case EEventCode::S2C_Result:
-			{
-				ResultNumber ResultData;
-				RecvByte = recv(ServerSocket, (char*)&ResultData, PacketSize, MSG_WAITALL);
+	//srand(time(NULL));
+	//while (true)
+	//{
+	//}
 
-				ResultData.Number = ntohs(ResultData.Number);
+	//closesocket(ServerSocket);
 
-				std::cout << "Result = " << ResultData.Number << std::endl;
-			}
-		}
-	}
-
-
-
-
-
-
-	closesocket(ServerSocket);
-
-	WSACleanup();
+	//WSACleanup();
 
 	return 0;
 }
