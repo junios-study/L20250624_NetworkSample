@@ -1,6 +1,5 @@
 namespace Calculate;
 
-
 table Data {
 	number1:int;
 	number2:int;

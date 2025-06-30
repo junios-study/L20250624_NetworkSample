@@ -6,10 +6,7 @@
 #include <iostream>
 #include <WinSock2.h>
 #include <Windows.h>
-#include "Packet.h"
-#include "rapidjson/document.h"
-#include "rapidjson/writer.h"
-#include "rapidjson/stringbuffer.h"
+
 #include "flatbuffers/flatbuffers.h"
 #include "Calculate_generated.h"
 #include "Result_generated.h"
@@ -30,7 +27,7 @@ int main()
 	ServerSockAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
 	ServerSockAddr.sin_port = htons(30303);
 
-	::connect(ServerSocket, (SOCKADDR*)&ServerSockAddr, sizeof(ServerSockAddr));
+	connect(ServerSocket, (SOCKADDR*)&ServerSockAddr, sizeof(ServerSockAddr));
 
 	char Operators[5] = { '+', '-', '*', '/', '%' };
 	srand((unsigned int)time(NULL));

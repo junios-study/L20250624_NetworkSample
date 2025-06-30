@@ -1,0 +1,1 @@
+flatc --cpp Calculate.fbs Result.fbs

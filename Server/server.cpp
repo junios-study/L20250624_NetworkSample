@@ -65,7 +65,7 @@ int main()
 int ProcessPacket(const char* buffer)
 {
 	auto d = Calculate::GetData(buffer);
-
+	
 	switch (d->operator_())
 	{
 	case '+':
