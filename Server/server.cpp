@@ -7,10 +7,15 @@
 #include <WinSock2.h>
 #include "Packet.h"
 #include "rapidjson/document.h"
+#include "rapidjson/writer.h"
+#include "rapidjson/stringbuffer.h"
 
 #pragma comment(lib, "ws2_32")
 
+using namespace std;
+using namespace rapidjson;
 
+int ProcessPacket(Document& d);
 
 int main()
 {
@@ -36,11 +41,57 @@ int main()
 
 	while (true)
 	{
+		int PacketSize = 0;
+		char RecvBuffer[4000] = { 0, };
+		int RecvBytes = recv(ClientSocket, (char*)&PacketSize, sizeof(PacketSize), MSG_WAITALL);
+		PacketSize = ntohl(PacketSize);
+		RecvBytes = recv(ClientSocket, RecvBuffer, PacketSize, MSG_WAITALL);
+
+		cout << RecvBuffer << endl;
+
+		Document d;
+		d.Parse(RecvBuffer);
+
+		int Result = ProcessPacket(d);
+
+		Document d2;
+		d2.SetObject();
+		d2.AddMember("Result", Result, d.GetAllocator());
+
+		StringBuffer buffer;
+		Writer<StringBuffer> writer(buffer);
+		d2.Accept(writer);
+
+		cout << buffer.GetString() << endl;
+
+		PacketSize = buffer.GetSize();
+		PacketSize = htonl(PacketSize);
+		int SentBytes = send(ClientSocket, (char*)&PacketSize, sizeof(PacketSize), 0);
+		SentBytes = send(ClientSocket, buffer.GetString(), buffer.GetSize(), 0);
 	}
 
 	closesocket(ListenSocket);
 
 	WSACleanup();
+
+	return 0;
+}
+
+int ProcessPacket(Document& d)
+{
+	switch (d["Operator"].GetInt())
+	{
+		case '+':
+			return d["Number1"].GetInt() + d["Number2"].GetInt();
+		case '-':
+			return d["Number1"].GetInt() - d["Number2"].GetInt();
+		case '/':
+			return d["Number1"].GetInt() / d["Number2"].GetInt();
+		case '*':
+			return d["Number1"].GetInt() * d["Number2"].GetInt();
+		case '%':
+			return d["Number1"].GetInt() % d["Number2"].GetInt();
+	}
 
 	return 0;
 }
