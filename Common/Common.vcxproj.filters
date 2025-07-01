@@ -6,11 +6,11 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Packet.h">
-      <Filter>Header</Filter>
-    </ClInclude>
+    <None Include="UserEvents.fbs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="UserEvents.fbs" />
+    <ClInclude Include="Common.h">
+      <Filter>Header</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

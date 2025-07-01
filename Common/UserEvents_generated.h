@@ -35,8 +35,50 @@ struct C2S_LogoutBuilder;
 struct S2C_Logout;
 struct S2C_LogoutBuilder;
 
+struct C2S_PlayerChat;
+struct C2S_PlayerChatBuilder;
+
+struct S2C_PlayerChat;
+struct S2C_PlayerChatBuilder;
+
 struct EventData;
 struct EventDataBuilder;
+
+enum ChatType : int8_t {
+  ChatType_All = 0,
+  ChatType_Team = 1,
+  ChatType_Private = 2,
+  ChatType_System = 3,
+  ChatType_MIN = ChatType_All,
+  ChatType_MAX = ChatType_System
+};
+
+inline const ChatType (&EnumValuesChatType())[4] {
+  static const ChatType values[] = {
+    ChatType_All,
+    ChatType_Team,
+    ChatType_Private,
+    ChatType_System
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesChatType() {
+  static const char * const names[5] = {
+    "All",
+    "Team",
+    "Private",
+    "System",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameChatType(ChatType e) {
+  if (::flatbuffers::IsOutRange(e, ChatType_All, ChatType_System)) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesChatType()[index];
+}
 
 enum EventType : uint8_t {
   EventType_NONE = 0,
@@ -46,11 +88,13 @@ enum EventType : uint8_t {
   EventType_S2C_PlayerMoveData = 4,
   EventType_C2S_Logout = 5,
   EventType_S2C_Logout = 6,
+  EventType_C2S_PlayerChat = 7,
+  EventType_S2C_PlayerChat = 8,
   EventType_MIN = EventType_NONE,
-  EventType_MAX = EventType_S2C_Logout
+  EventType_MAX = EventType_S2C_PlayerChat
 };
 
-inline const EventType (&EnumValuesEventType())[7] {
+inline const EventType (&EnumValuesEventType())[9] {
   static const EventType values[] = {
     EventType_NONE,
     EventType_C2S_Login,
@@ -58,13 +102,15 @@ inline const EventType (&EnumValuesEventType())[7] {
     EventType_C2S_PlayerMoveData,
     EventType_S2C_PlayerMoveData,
     EventType_C2S_Logout,
-    EventType_S2C_Logout
+    EventType_S2C_Logout,
+    EventType_C2S_PlayerChat,
+    EventType_S2C_PlayerChat
   };
   return values;
 }
 
 inline const char * const *EnumNamesEventType() {
-  static const char * const names[8] = {
+  static const char * const names[10] = {
     "NONE",
     "C2S_Login",
     "S2C_Login",
@@ -72,13 +118,15 @@ inline const char * const *EnumNamesEventType() {
     "S2C_PlayerMoveData",
     "C2S_Logout",
     "S2C_Logout",
+    "C2S_PlayerChat",
+    "S2C_PlayerChat",
     nullptr
   };
   return names;
 }
 
 inline const char *EnumNameEventType(EventType e) {
-  if (::flatbuffers::IsOutRange(e, EventType_NONE, EventType_S2C_Logout)) return "";
+  if (::flatbuffers::IsOutRange(e, EventType_NONE, EventType_S2C_PlayerChat)) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesEventType()[index];
 }
@@ -109,6 +157,14 @@ template<> struct EventTypeTraits<UserEvents::C2S_Logout> {
 
 template<> struct EventTypeTraits<UserEvents::S2C_Logout> {
   static const EventType enum_value = EventType_S2C_Logout;
+};
+
+template<> struct EventTypeTraits<UserEvents::C2S_PlayerChat> {
+  static const EventType enum_value = EventType_C2S_PlayerChat;
+};
+
+template<> struct EventTypeTraits<UserEvents::S2C_PlayerChat> {
+  static const EventType enum_value = EventType_S2C_PlayerChat;
 };
 
 bool VerifyEventType(::flatbuffers::Verifier &verifier, const void *obj, EventType type);
@@ -211,12 +267,16 @@ inline ::flatbuffers::Offset<C2S_Login> CreateC2S_LoginDirect(
 struct S2C_Login FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef S2C_LoginBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_SUCCESS = 4,
-    VT_MESSAGE = 6,
-    VT_POSITION_X = 8,
-    VT_POSITION_Y = 10,
-    VT_COLOR = 12
+    VT_PLAYER_ID = 4,
+    VT_SUCCESS = 6,
+    VT_MESSAGE = 8,
+    VT_POSITION_X = 10,
+    VT_POSITION_Y = 12,
+    VT_COLOR = 14
   };
+  uint32_t player_id() const {
+    return GetField<uint32_t>(VT_PLAYER_ID, 0);
+  }
   bool success() const {
     return GetField<uint8_t>(VT_SUCCESS, 0) != 0;
   }
@@ -234,6 +294,7 @@ struct S2C_Login FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
+           VerifyField<uint32_t>(verifier, VT_PLAYER_ID, 4) &&
            VerifyField<uint8_t>(verifier, VT_SUCCESS, 1) &&
            VerifyOffset(verifier, VT_MESSAGE) &&
            verifier.VerifyString(message()) &&
@@ -248,6 +309,9 @@ struct S2C_LoginBuilder {
   typedef S2C_Login Table;
   ::flatbuffers::FlatBufferBuilder &fbb_;
   ::flatbuffers::uoffset_t start_;
+  void add_player_id(uint32_t player_id) {
+    fbb_.AddElement<uint32_t>(S2C_Login::VT_PLAYER_ID, player_id, 0);
+  }
   void add_success(bool success) {
     fbb_.AddElement<uint8_t>(S2C_Login::VT_SUCCESS, static_cast<uint8_t>(success), 0);
   }
@@ -276,6 +340,7 @@ struct S2C_LoginBuilder {
 
 inline ::flatbuffers::Offset<S2C_Login> CreateS2C_Login(
     ::flatbuffers::FlatBufferBuilder &_fbb,
+    uint32_t player_id = 0,
     bool success = false,
     ::flatbuffers::Offset<::flatbuffers::String> message = 0,
     uint16_t position_x = 0,
@@ -284,6 +349,7 @@ inline ::flatbuffers::Offset<S2C_Login> CreateS2C_Login(
   S2C_LoginBuilder builder_(_fbb);
   builder_.add_color(color);
   builder_.add_message(message);
+  builder_.add_player_id(player_id);
   builder_.add_position_y(position_y);
   builder_.add_position_x(position_x);
   builder_.add_success(success);
@@ -292,6 +358,7 @@ inline ::flatbuffers::Offset<S2C_Login> CreateS2C_Login(
 
 inline ::flatbuffers::Offset<S2C_Login> CreateS2C_LoginDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
+    uint32_t player_id = 0,
     bool success = false,
     const char *message = nullptr,
     uint16_t position_x = 0,
@@ -300,6 +367,7 @@ inline ::flatbuffers::Offset<S2C_Login> CreateS2C_LoginDirect(
   auto message__ = message ? _fbb.CreateString(message) : 0;
   return UserEvents::CreateS2C_Login(
       _fbb,
+      player_id,
       success,
       message__,
       position_x,
@@ -555,6 +623,184 @@ inline ::flatbuffers::Offset<S2C_Logout> CreateS2C_LogoutDirect(
       message__);
 }
 
+struct C2S_PlayerChat FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef C2S_PlayerChatBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_PLAYER_ID = 4,
+    VT_USERID = 6,
+    VT_MESSAGE = 8,
+    VT_CHAT_TYPE = 10
+  };
+  uint32_t player_id() const {
+    return GetField<uint32_t>(VT_PLAYER_ID, 0);
+  }
+  const ::flatbuffers::String *userid() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_USERID);
+  }
+  const ::flatbuffers::String *message() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_MESSAGE);
+  }
+  UserEvents::ChatType chat_type() const {
+    return static_cast<UserEvents::ChatType>(GetField<int8_t>(VT_CHAT_TYPE, 0));
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<uint32_t>(verifier, VT_PLAYER_ID, 4) &&
+           VerifyOffset(verifier, VT_USERID) &&
+           verifier.VerifyString(userid()) &&
+           VerifyOffset(verifier, VT_MESSAGE) &&
+           verifier.VerifyString(message()) &&
+           VerifyField<int8_t>(verifier, VT_CHAT_TYPE, 1) &&
+           verifier.EndTable();
+  }
+};
+
+struct C2S_PlayerChatBuilder {
+  typedef C2S_PlayerChat Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_player_id(uint32_t player_id) {
+    fbb_.AddElement<uint32_t>(C2S_PlayerChat::VT_PLAYER_ID, player_id, 0);
+  }
+  void add_userid(::flatbuffers::Offset<::flatbuffers::String> userid) {
+    fbb_.AddOffset(C2S_PlayerChat::VT_USERID, userid);
+  }
+  void add_message(::flatbuffers::Offset<::flatbuffers::String> message) {
+    fbb_.AddOffset(C2S_PlayerChat::VT_MESSAGE, message);
+  }
+  void add_chat_type(UserEvents::ChatType chat_type) {
+    fbb_.AddElement<int8_t>(C2S_PlayerChat::VT_CHAT_TYPE, static_cast<int8_t>(chat_type), 0);
+  }
+  explicit C2S_PlayerChatBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<C2S_PlayerChat> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<C2S_PlayerChat>(end);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<C2S_PlayerChat> CreateC2S_PlayerChat(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    uint32_t player_id = 0,
+    ::flatbuffers::Offset<::flatbuffers::String> userid = 0,
+    ::flatbuffers::Offset<::flatbuffers::String> message = 0,
+    UserEvents::ChatType chat_type = UserEvents::ChatType_All) {
+  C2S_PlayerChatBuilder builder_(_fbb);
+  builder_.add_message(message);
+  builder_.add_userid(userid);
+  builder_.add_player_id(player_id);
+  builder_.add_chat_type(chat_type);
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<C2S_PlayerChat> CreateC2S_PlayerChatDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    uint32_t player_id = 0,
+    const char *userid = nullptr,
+    const char *message = nullptr,
+    UserEvents::ChatType chat_type = UserEvents::ChatType_All) {
+  auto userid__ = userid ? _fbb.CreateString(userid) : 0;
+  auto message__ = message ? _fbb.CreateString(message) : 0;
+  return UserEvents::CreateC2S_PlayerChat(
+      _fbb,
+      player_id,
+      userid__,
+      message__,
+      chat_type);
+}
+
+struct S2C_PlayerChat FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
+  typedef S2C_PlayerChatBuilder Builder;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_PLAYER_ID = 4,
+    VT_USERID = 6,
+    VT_MESSAGE = 8,
+    VT_CHAT_TYPE = 10
+  };
+  uint32_t player_id() const {
+    return GetField<uint32_t>(VT_PLAYER_ID, 0);
+  }
+  const ::flatbuffers::String *userid() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_USERID);
+  }
+  const ::flatbuffers::String *message() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_MESSAGE);
+  }
+  UserEvents::ChatType chat_type() const {
+    return static_cast<UserEvents::ChatType>(GetField<int8_t>(VT_CHAT_TYPE, 0));
+  }
+  bool Verify(::flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<uint32_t>(verifier, VT_PLAYER_ID, 4) &&
+           VerifyOffset(verifier, VT_USERID) &&
+           verifier.VerifyString(userid()) &&
+           VerifyOffset(verifier, VT_MESSAGE) &&
+           verifier.VerifyString(message()) &&
+           VerifyField<int8_t>(verifier, VT_CHAT_TYPE, 1) &&
+           verifier.EndTable();
+  }
+};
+
+struct S2C_PlayerChatBuilder {
+  typedef S2C_PlayerChat Table;
+  ::flatbuffers::FlatBufferBuilder &fbb_;
+  ::flatbuffers::uoffset_t start_;
+  void add_player_id(uint32_t player_id) {
+    fbb_.AddElement<uint32_t>(S2C_PlayerChat::VT_PLAYER_ID, player_id, 0);
+  }
+  void add_userid(::flatbuffers::Offset<::flatbuffers::String> userid) {
+    fbb_.AddOffset(S2C_PlayerChat::VT_USERID, userid);
+  }
+  void add_message(::flatbuffers::Offset<::flatbuffers::String> message) {
+    fbb_.AddOffset(S2C_PlayerChat::VT_MESSAGE, message);
+  }
+  void add_chat_type(UserEvents::ChatType chat_type) {
+    fbb_.AddElement<int8_t>(S2C_PlayerChat::VT_CHAT_TYPE, static_cast<int8_t>(chat_type), 0);
+  }
+  explicit S2C_PlayerChatBuilder(::flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ::flatbuffers::Offset<S2C_PlayerChat> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = ::flatbuffers::Offset<S2C_PlayerChat>(end);
+    return o;
+  }
+};
+
+inline ::flatbuffers::Offset<S2C_PlayerChat> CreateS2C_PlayerChat(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    uint32_t player_id = 0,
+    ::flatbuffers::Offset<::flatbuffers::String> userid = 0,
+    ::flatbuffers::Offset<::flatbuffers::String> message = 0,
+    UserEvents::ChatType chat_type = UserEvents::ChatType_All) {
+  S2C_PlayerChatBuilder builder_(_fbb);
+  builder_.add_message(message);
+  builder_.add_userid(userid);
+  builder_.add_player_id(player_id);
+  builder_.add_chat_type(chat_type);
+  return builder_.Finish();
+}
+
+inline ::flatbuffers::Offset<S2C_PlayerChat> CreateS2C_PlayerChatDirect(
+    ::flatbuffers::FlatBufferBuilder &_fbb,
+    uint32_t player_id = 0,
+    const char *userid = nullptr,
+    const char *message = nullptr,
+    UserEvents::ChatType chat_type = UserEvents::ChatType_All) {
+  auto userid__ = userid ? _fbb.CreateString(userid) : 0;
+  auto message__ = message ? _fbb.CreateString(message) : 0;
+  return UserEvents::CreateS2C_PlayerChat(
+      _fbb,
+      player_id,
+      userid__,
+      message__,
+      chat_type);
+}
+
 struct EventData FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef EventDataBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
@@ -590,6 +836,12 @@ struct EventData FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   const UserEvents::S2C_Logout *data_as_S2C_Logout() const {
     return data_type() == UserEvents::EventType_S2C_Logout ? static_cast<const UserEvents::S2C_Logout *>(data()) : nullptr;
   }
+  const UserEvents::C2S_PlayerChat *data_as_C2S_PlayerChat() const {
+    return data_type() == UserEvents::EventType_C2S_PlayerChat ? static_cast<const UserEvents::C2S_PlayerChat *>(data()) : nullptr;
+  }
+  const UserEvents::S2C_PlayerChat *data_as_S2C_PlayerChat() const {
+    return data_type() == UserEvents::EventType_S2C_PlayerChat ? static_cast<const UserEvents::S2C_PlayerChat *>(data()) : nullptr;
+  }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyField<uint64_t>(verifier, VT_TIMESTAMP, 8) &&
@@ -622,6 +874,14 @@ template<> inline const UserEvents::C2S_Logout *EventData::data_as<UserEvents::C
 
 template<> inline const UserEvents::S2C_Logout *EventData::data_as<UserEvents::S2C_Logout>() const {
   return data_as_S2C_Logout();
+}
+
+template<> inline const UserEvents::C2S_PlayerChat *EventData::data_as<UserEvents::C2S_PlayerChat>() const {
+  return data_as_C2S_PlayerChat();
+}
+
+template<> inline const UserEvents::S2C_PlayerChat *EventData::data_as<UserEvents::S2C_PlayerChat>() const {
+  return data_as_S2C_PlayerChat();
 }
 
 struct EventDataBuilder {
@@ -687,6 +947,14 @@ inline bool VerifyEventType(::flatbuffers::Verifier &verifier, const void *obj, 
     }
     case EventType_S2C_Logout: {
       auto ptr = reinterpret_cast<const UserEvents::S2C_Logout *>(obj);
+      return verifier.VerifyTable(ptr);
+    }
+    case EventType_C2S_PlayerChat: {
+      auto ptr = reinterpret_cast<const UserEvents::C2S_PlayerChat *>(obj);
+      return verifier.VerifyTable(ptr);
+    }
+    case EventType_S2C_PlayerChat: {
+      auto ptr = reinterpret_cast<const UserEvents::S2C_PlayerChat *>(obj);
       return verifier.VerifyTable(ptr);
     }
     default: return true;

@@ -6,12 +6,20 @@ struct Color {
 	b: uint8;
 }
 
+enum ChatType : byte {
+  All = 0,
+  Team = 1,
+  Private = 2,
+  System = 3
+}
+
 table C2S_Login {
 	userid: string;
 	password: string;
 }
 
 table S2C_Login {
+	player_id: uint32;
 	success: bool;
 	message: string;
 	position_x: uint16;
@@ -42,6 +50,20 @@ table S2C_Logout {
 	message: string;
 }
 
+table C2S_PlayerChat {
+  player_id:uint32;
+  userid:string;
+  message:string;
+  chat_type:ChatType;
+}
+
+table S2C_PlayerChat {
+  player_id:uint32;
+  userid:string;
+  message:string;
+  chat_type:ChatType;
+}
+
 
 union EventType {
 	C2S_Login,
@@ -49,8 +71,12 @@ union EventType {
 	C2S_PlayerMoveData,
 	S2C_PlayerMoveData,
 	C2S_Logout,
-	S2C_Logout
+	S2C_Logout,
+	C2S_PlayerChat,
+	S2C_PlayerChat
 }
+
+
 
 table EventData {
 	timestamp: uint64;

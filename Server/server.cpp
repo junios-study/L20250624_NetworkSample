@@ -7,57 +7,15 @@
 
 #include "flatbuffers/flatbuffers.h"
 #include "UserEvents_generated.h"
+#include "Common.h"
 
 
 #pragma comment(lib, "ws2_32")
 
-uint64_t GetTimeStamp()
-{
-	return (uint64_t)time(NULL);
-}
 
-int ProcessPacket(const char* RecvBuffer, SOCKET ClientSocket);
+int ProcessPacket(SOCKET ClientSocket, const char* RecvBuffer);
+void CreateS2C_Login(flatbuffers::FlatBufferBuilder& Builder, SOCKET ClientSocket, bool IsSuccess, std::string Message);
 
-
-void SendPacket(SOCKET Socket, flatbuffers::FlatBufferBuilder& Builder)
-{
-	int PacketSize = (int)Builder.GetSize();
-	PacketSize = ::htonl(PacketSize);
-	//header, 길이
-	int SentBytes = ::send(Socket, (char*)&PacketSize, sizeof(PacketSize), 0);
-	//자료 
-	SentBytes = ::send(Socket, (char*)Builder.GetBufferPointer(), Builder.GetSize(), 0);
-	if (SentBytes <= 0)
-	{
-		std::cout << "Send failed: " << WSAGetLastError() << std::endl;
-	}
-}
-
-void RecvPacket(SOCKET Socket, char* Buffer)
-{
-	int PacketSize = 0;
-	int RecvBytes = recv(Socket, (char*)&PacketSize, sizeof(PacketSize), MSG_WAITALL);
-	if (RecvBytes <= 0)
-	{
-		std::cout << "Header Recv failed: " << WSAGetLastError() << std::endl;
-		return;
-	}
-	PacketSize = ntohl(PacketSize);
-	RecvBytes = recv(Socket, Buffer, PacketSize, MSG_WAITALL);
-	if (RecvBytes <= 0)
-	{
-		std::cout << "Body Recv failed: " << WSAGetLastError() << std::endl;
-		return;
-	}
-}
-
-
-void CreateS2C_Login(flatbuffers::FlatBufferBuilder& Builder, bool IsSuccess, std::string Message)
-{
-	auto LoginEvent = UserEvents::CreateS2C_Login(Builder, IsSuccess, Builder.CreateString(Message));
-	auto EventData = UserEvents::CreateEventData(Builder, GetTimeStamp(), UserEvents::EventType_S2C_Login, LoginEvent.Union());
-	Builder.Finish(EventData);
-}
 
 int main()
 {
@@ -85,7 +43,7 @@ int main()
 		char RecvBuffer[4000] = { 0, };
 		RecvPacket(ClientSocket, RecvBuffer);
 		
-		int Result = ProcessPacket(RecvBuffer, ClientSocket);
+		int Result = ProcessPacket(ClientSocket, RecvBuffer);
 	}
 
 	closesocket(ListenSocket);
@@ -95,7 +53,7 @@ int main()
 	return 0;
 }
 
-int ProcessPacket(const char* RecvBuffer, SOCKET ClientSocket)
+int ProcessPacket(SOCKET ClientSocket, const char* RecvBuffer)
 {
 	//root_type
 	auto RecvEventData = UserEvents::GetEventData(RecvBuffer);
@@ -111,11 +69,11 @@ int ProcessPacket(const char* RecvBuffer, SOCKET ClientSocket)
 			if (LoginData->userid() && LoginData->password())
 			{
 				std::cout << "Login Request success: " << LoginData->userid()->c_str() << ", " << LoginData->password()->c_str() << std::endl;
-				CreateS2C_Login(Builder, true, "Login Success");
+				CreateS2C_Login(Builder, ClientSocket, true, "Login Success");
 			}
 			else
 			{
-				CreateS2C_Login(Builder, false, "empty id, password");
+				CreateS2C_Login(Builder, ClientSocket, false, "empty id, password");
 			}
 			SendPacket(ClientSocket, Builder);
 		}
@@ -128,4 +86,13 @@ int ProcessPacket(const char* RecvBuffer, SOCKET ClientSocket)
 	}
 
 	return 0;
+}
+
+
+
+void CreateS2C_Login(flatbuffers::FlatBufferBuilder& Builder, SOCKET ClientSocket, bool IsSuccess, std::string Message)
+{
+	auto LoginEvent = UserEvents::CreateS2C_Login(Builder, (uint32_t)ClientSocket, IsSuccess, Builder.CreateString(Message));
+	auto EventData = UserEvents::CreateEventData(Builder, GetTimeStamp(), UserEvents::EventType_S2C_Login, LoginEvent.Union());
+	Builder.Finish(EventData);
 }

@@ -10,67 +10,15 @@
 #include "flatbuffers/flatbuffers.h"
 #include "UserEvents_generated.h"
 
+#include "Common.h"
+
 
 #pragma comment(lib, "ws2_32")
 
-uint64_t GetTimeStamp()
-{
-	return (uint64_t)time(NULL);
-}
+void CreateC2S_Login(flatbuffers::FlatBufferBuilder& Builder);
+void ProcessPacket(SOCKET ServerSocket, const char* RecvBuffer);
 
-void SendPacket(SOCKET Socket, flatbuffers::FlatBufferBuilder& Builder)
-{
-	int PacketSize = (int)Builder.GetSize();
-	PacketSize = ::htonl(PacketSize);
-	//header, 길이
-	int SentBytes = ::send(Socket, (char*)&PacketSize, sizeof(PacketSize), 0);
-	//자료 
-	SentBytes = ::send(Socket, (char*)Builder.GetBufferPointer(), Builder.GetSize(), 0);
-	if (SentBytes  <= 0)
-	{
-		std::cout << "Send failed: " << WSAGetLastError() << std::endl;
-	}
-}
 
-void RecvPacket(SOCKET Socket, char* Buffer)
-{
-	int PacketSize = 0;
-	int RecvBytes = recv(Socket, (char*)&PacketSize, sizeof(PacketSize), MSG_WAITALL);
-	if (RecvBytes <= 0)
-	{
-		std::cout << "Header Recv failed: " << WSAGetLastError() << std::endl;
-		return;
-	}
-	PacketSize = ntohl(PacketSize);
-	RecvBytes = recv(Socket, Buffer, PacketSize, MSG_WAITALL);
-	if (RecvBytes <= 0)
-	{
-		std::cout << "Body Recv failed: " << WSAGetLastError() << std::endl;
-		return;
-	}
-}
-void CreateC2S_Login(flatbuffers::FlatBufferBuilder& Builder)
-{
-	auto LoginEvent = UserEvents::CreateC2S_Login(Builder, Builder.CreateString("username"), Builder.CreateString("password"));
-	auto EventData = UserEvents::CreateEventData(Builder, GetTimeStamp(), UserEvents::EventType_C2S_Login, LoginEvent.Union());
-	Builder.Finish(EventData);
-}
-
-void ProcessPacket(const char* RecvBuffer)
-{
-	//root_type
-	auto RecvEventData = UserEvents::GetEventData(RecvBuffer);
-	std::cout << RecvEventData->timestamp() << std::endl; //타임스탬프
-
-	switch (RecvEventData->data_type())
-	{
-		case UserEvents::EventType_S2C_Login:
-		{
-			auto LoginData = RecvEventData->data_as_S2C_Login();
-		}
-		break;
-	}
-}
 
 
 int main()
@@ -99,7 +47,7 @@ int main()
 		
 		RecvPacket(ServerSocket, RecvBuffer);
 
-		ProcessPacket(RecvBuffer);
+		ProcessPacket(ServerSocket, RecvBuffer);
 	}
 
 	closesocket(ServerSocket);
@@ -108,3 +56,28 @@ int main()
 
 	return 0;
 }
+
+void CreateC2S_Login(flatbuffers::FlatBufferBuilder& Builder)
+{
+	auto LoginEvent = UserEvents::CreateC2S_Login(Builder, Builder.CreateString("username"), Builder.CreateString("password"));
+	auto EventData = UserEvents::CreateEventData(Builder, GetTimeStamp(), UserEvents::EventType_C2S_Login, LoginEvent.Union());
+	Builder.Finish(EventData);
+}
+
+
+void ProcessPacket(SOCKET ServerSocket, const char* RecvBuffer)
+{
+	//root_type
+	auto RecvEventData = UserEvents::GetEventData(RecvBuffer);
+	std::cout << RecvEventData->timestamp() << std::endl; //타임스탬프
+
+	switch (RecvEventData->data_type())
+	{
+	case UserEvents::EventType_S2C_Login:
+	{
+		auto LoginData = RecvEventData->data_as_S2C_Login();
+	}
+	break;
+	}
+}
+

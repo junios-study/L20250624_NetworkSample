@@ -19,10 +19,10 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Packet.h" />
+    <None Include="UserEvents.fbs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="UserEvents.fbs" />
+    <ClInclude Include="Common.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>
