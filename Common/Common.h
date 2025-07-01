@@ -5,8 +5,8 @@
 #include <Windows.h>
 #include "flatbuffers/flatbuffers.h"
 
-void SendPacket(SOCKET Socket, flatbuffers::FlatBufferBuilder& Builder);
-void RecvPacket(SOCKET Socket, char* Buffer);
+int SendPacket(SOCKET Socket, flatbuffers::FlatBufferBuilder& Builder);
+int RecvPacket(SOCKET Socket, char* Buffer);
 
 uint64_t GetTimeStamp()
 {
@@ -15,7 +15,7 @@ uint64_t GetTimeStamp()
 
 
 
-void SendPacket(SOCKET Socket, flatbuffers::FlatBufferBuilder& Builder)
+int SendPacket(SOCKET Socket, flatbuffers::FlatBufferBuilder& Builder)
 {
 	int PacketSize = (int)Builder.GetSize();
 	PacketSize = ::htonl(PacketSize);
@@ -27,23 +27,34 @@ void SendPacket(SOCKET Socket, flatbuffers::FlatBufferBuilder& Builder)
 	{
 		std::cout << "Send failed: " << WSAGetLastError() << std::endl;
 	}
+	return SentBytes;
 }
 
-void RecvPacket(SOCKET Socket, char* Buffer)
+int RecvPacket(SOCKET Socket, char* Buffer)
 {
 	int PacketSize = 0;
 	int RecvBytes = recv(Socket, (char*)&PacketSize, sizeof(PacketSize), MSG_WAITALL);
 	if (RecvBytes <= 0)
 	{
 		std::cout << "Header Recv failed: " << WSAGetLastError() << std::endl;
-		return;
+		goto End;
 	}
+
 	PacketSize = ntohl(PacketSize);
 	RecvBytes = recv(Socket, Buffer, PacketSize, MSG_WAITALL);
 	if (RecvBytes <= 0)
 	{
 		std::cout << "Body Recv failed: " << WSAGetLastError() << std::endl;
-		return;
+		goto End;
 	}
+
+End:
+	return RecvBytes;
 }
 
+
+void GotoXY(int x, int y)
+{
+	COORD pos = { (SHORT)x, (SHORT)y };
+	SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), pos);
+}
