@@ -7,7 +7,7 @@ struct Color {
 }
 
 table C2S_Login {
-	username: string;
+	userid: string;
 	password: string;
 }
 

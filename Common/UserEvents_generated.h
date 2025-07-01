@@ -146,19 +146,19 @@ FLATBUFFERS_STRUCT_END(Color, 3);
 struct C2S_Login FLATBUFFERS_FINAL_CLASS : private ::flatbuffers::Table {
   typedef C2S_LoginBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_USERNAME = 4,
+    VT_USERID = 4,
     VT_PASSWORD = 6
   };
-  const ::flatbuffers::String *username() const {
-    return GetPointer<const ::flatbuffers::String *>(VT_USERNAME);
+  const ::flatbuffers::String *userid() const {
+    return GetPointer<const ::flatbuffers::String *>(VT_USERID);
   }
   const ::flatbuffers::String *password() const {
     return GetPointer<const ::flatbuffers::String *>(VT_PASSWORD);
   }
   bool Verify(::flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
-           VerifyOffset(verifier, VT_USERNAME) &&
-           verifier.VerifyString(username()) &&
+           VerifyOffset(verifier, VT_USERID) &&
+           verifier.VerifyString(userid()) &&
            VerifyOffset(verifier, VT_PASSWORD) &&
            verifier.VerifyString(password()) &&
            verifier.EndTable();
@@ -169,8 +169,8 @@ struct C2S_LoginBuilder {
   typedef C2S_Login Table;
   ::flatbuffers::FlatBufferBuilder &fbb_;
   ::flatbuffers::uoffset_t start_;
-  void add_username(::flatbuffers::Offset<::flatbuffers::String> username) {
-    fbb_.AddOffset(C2S_Login::VT_USERNAME, username);
+  void add_userid(::flatbuffers::Offset<::flatbuffers::String> userid) {
+    fbb_.AddOffset(C2S_Login::VT_USERID, userid);
   }
   void add_password(::flatbuffers::Offset<::flatbuffers::String> password) {
     fbb_.AddOffset(C2S_Login::VT_PASSWORD, password);
@@ -188,23 +188,23 @@ struct C2S_LoginBuilder {
 
 inline ::flatbuffers::Offset<C2S_Login> CreateC2S_Login(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    ::flatbuffers::Offset<::flatbuffers::String> username = 0,
+    ::flatbuffers::Offset<::flatbuffers::String> userid = 0,
     ::flatbuffers::Offset<::flatbuffers::String> password = 0) {
   C2S_LoginBuilder builder_(_fbb);
   builder_.add_password(password);
-  builder_.add_username(username);
+  builder_.add_userid(userid);
   return builder_.Finish();
 }
 
 inline ::flatbuffers::Offset<C2S_Login> CreateC2S_LoginDirect(
     ::flatbuffers::FlatBufferBuilder &_fbb,
-    const char *username = nullptr,
+    const char *userid = nullptr,
     const char *password = nullptr) {
-  auto username__ = username ? _fbb.CreateString(username) : 0;
+  auto userid__ = userid ? _fbb.CreateString(userid) : 0;
   auto password__ = password ? _fbb.CreateString(password) : 0;
   return UserEvents::CreateC2S_Login(
       _fbb,
-      username__,
+      userid__,
       password__);
 }
 

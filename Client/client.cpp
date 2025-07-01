@@ -49,6 +49,29 @@ void RecvPacket(SOCKET Socket, char* Buffer)
 		return;
 	}
 }
+void CreateC2S_Login(flatbuffers::FlatBufferBuilder& Builder)
+{
+	auto LoginEvent = UserEvents::CreateC2S_Login(Builder, Builder.CreateString("username"), Builder.CreateString("password"));
+	auto EventData = UserEvents::CreateEventData(Builder, GetTimeStamp(), UserEvents::EventType_C2S_Login, LoginEvent.Union());
+	Builder.Finish(EventData);
+}
+
+void ProcessPacket(const char* RecvBuffer)
+{
+	//root_type
+	auto RecvEventData = UserEvents::GetEventData(RecvBuffer);
+	std::cout << RecvEventData->timestamp() << std::endl; //타임스탬프
+
+	switch (RecvEventData->data_type())
+	{
+		case UserEvents::EventType_S2C_Login:
+		{
+			auto LoginData = RecvEventData->data_as_S2C_Login();
+		}
+		break;
+	}
+}
+
 
 int main()
 {
@@ -65,36 +88,18 @@ int main()
 
 	connect(ServerSocket, (SOCKADDR*)&ServerSockAddr, sizeof(ServerSockAddr));
 
-	char Operators[5] = { '+', '-', '*', '/', '%' };
-	srand((unsigned int)time(NULL));
 	while (true)
 	{
-		int Number1 = rand() % 9998 + 1;
-		int Number2 = rand() % 9998 + 1;
-		uint8_t Operator = Operators[rand() % 5];
-
-		//C2S_Login 이벤트 생성
+		char RecvBuffer[10240] = { 0 };
 		flatbuffers::FlatBufferBuilder Builder;
-		auto LoginEvent = UserEvents::CreateC2S_Login(Builder, Builder.CreateString("username"), Builder.CreateString("password"));
-		auto EventData = UserEvents::CreateEventData(Builder, GetTimeStamp(), UserEvents::EventType_C2S_Login, LoginEvent.Union());
-		Builder.Finish(EventData);
+
+		CreateC2S_Login(Builder);
 
 		SendPacket(ServerSocket, Builder);
 		
-		//받기
-		char RecvBuffer[10240] = { 0 };
 		RecvPacket(ServerSocket, RecvBuffer);
 
-		auto RecvEventData = UserEvents::GetEventData(RecvBuffer);
-		std::cout << RecvEventData->timestamp() << std::endl; //타임스탬프
-
-		switch (RecvEventData->data_type())
-		{
-			case UserEvents::EventType_S2C_Login:
-			{
-				auto LoginData = RecvEventData->data_type_as_S2C_Login();
-			}
-		}
+		ProcessPacket(RecvBuffer);
 	}
 
 	closesocket(ServerSocket);
