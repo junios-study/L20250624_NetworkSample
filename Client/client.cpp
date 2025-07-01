@@ -8,11 +8,47 @@
 #include <Windows.h>
 
 #include "flatbuffers/flatbuffers.h"
-#include "Calculate_generated.h"
-#include "Result_generated.h"
+#include "UserEvents_generated.h"
 
 
 #pragma comment(lib, "ws2_32")
+
+uint64_t GetTimeStamp()
+{
+	return (uint64_t)time(NULL);
+}
+
+void SendPacket(SOCKET Socket, flatbuffers::FlatBufferBuilder& Builder)
+{
+	int PacketSize = (int)Builder.GetSize();
+	PacketSize = ::htonl(PacketSize);
+	//header, 길이
+	int SentBytes = ::send(Socket, (char*)&PacketSize, sizeof(PacketSize), 0);
+	//자료 
+	SentBytes = ::send(Socket, (char*)Builder.GetBufferPointer(), Builder.GetSize(), 0);
+	if (SentBytes  <= 0)
+	{
+		std::cout << "Send failed: " << WSAGetLastError() << std::endl;
+	}
+}
+
+void RecvPacket(SOCKET Socket, char* Buffer)
+{
+	int PacketSize = 0;
+	int RecvBytes = recv(Socket, (char*)&PacketSize, sizeof(PacketSize), MSG_WAITALL);
+	if (RecvBytes <= 0)
+	{
+		std::cout << "Header Recv failed: " << WSAGetLastError() << std::endl;
+		return;
+	}
+	PacketSize = ntohl(PacketSize);
+	RecvBytes = recv(Socket, Buffer, PacketSize, MSG_WAITALL);
+	if (RecvBytes <= 0)
+	{
+		std::cout << "Body Recv failed: " << WSAGetLastError() << std::endl;
+		return;
+	}
+}
 
 int main()
 {
@@ -37,29 +73,28 @@ int main()
 		int Number2 = rand() % 9998 + 1;
 		uint8_t Operator = Operators[rand() % 5];
 
-		flatbuffers::FlatBufferBuilder Builder(1024);
-		auto Data = Calculate::CreateData(Builder, Number1, Number2, Operator);
-		Builder.Finish(Data);
+		//C2S_Login 이벤트 생성
+		flatbuffers::FlatBufferBuilder Builder;
+		auto LoginEvent = UserEvents::CreateC2S_Login(Builder, Builder.CreateString("username"), Builder.CreateString("password"));
+		auto EventData = UserEvents::CreateEventData(Builder, GetTimeStamp(), UserEvents::EventType_C2S_Login, LoginEvent.Union());
+		Builder.Finish(EventData);
 
-		std::cout << Number1 << " " << Operator << " " << Number2;
-
-		int PacketSize = (int)Builder.GetSize();
-		PacketSize = ::htonl(PacketSize);
-		//header, 길이
-		int SentBytes = ::send(ServerSocket, (char*)&PacketSize, sizeof(PacketSize), 0);
-		//자료 
-		SentBytes = ::send(ServerSocket, (char*)Builder.GetBufferPointer(), Builder.GetSize(), 0);
-
+		SendPacket(ServerSocket, Builder);
+		
 		//받기
-		char RecvBuffer[1024] = { 0, };
-		int RecvBytes = recv(ServerSocket, (char*)&PacketSize, sizeof(PacketSize), MSG_WAITALL);
-		PacketSize = ntohl(PacketSize);
-		RecvBytes = recv(ServerSocket, RecvBuffer, PacketSize, MSG_WAITALL);
+		char RecvBuffer[10240] = { 0 };
+		RecvPacket(ServerSocket, RecvBuffer);
 
-		auto d = Calculate::GetResult(RecvBuffer);
+		auto RecvEventData = UserEvents::GetEventData(RecvBuffer);
+		std::cout << RecvEventData->timestamp() << std::endl; //타임스탬프
 
-
-		std::cout << " = " << d->result_number() << std::endl;
+		switch (RecvEventData->data_type())
+		{
+			case UserEvents::EventType_S2C_Login:
+			{
+				auto LoginData = RecvEventData->data_type_as_S2C_Login();
+			}
+		}
 	}
 
 	closesocket(ServerSocket);

@@ -1,1 +1,1 @@
-flatc --cpp Calculate.fbs Result.fbs
+flatc --cpp UserEvents.fbs
